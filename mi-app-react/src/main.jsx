@@ -7,6 +7,6 @@ import Ejemplo from './Ejemplo.jsx'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     {/* <App /> */}
-    <Ejemplo list={[1, 2, 3, 4]} />
+    <Ejemplo list={[1, 2, 3, 4, 5, 6]} dummy={"cadena"} miParametro={true} />
   </StrictMode>,
 )
