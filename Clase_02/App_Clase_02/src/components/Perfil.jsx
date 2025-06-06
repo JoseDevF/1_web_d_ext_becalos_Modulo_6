@@ -18,7 +18,7 @@ const Perfil = ({ nombre, rol }) => {
         <>
             <div className="max-w-sm mx-auto mt-12 p-6 bg-white shadow-lg rounded-xl text-center">
                 <div className="mb-4">
-                    <span className="text-6xl">👩‍💻</span>
+                    <span className="text-6xl">👨‍💼</span>
                 </div>
                 <h2 className="text-2xl font-bold">{nombre}</h2>
                 <p className="text-gray-600">{rol}</p>
