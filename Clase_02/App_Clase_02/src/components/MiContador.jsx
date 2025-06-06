@@ -1,0 +1,33 @@
+import { useState } from "react"
+import MiInput from "./MiInput";
+
+const MiContador = () => {
+    //1. Definir el estado y su funcion de actualización
+    const [contador, setContador] = useState(0);
+
+    //2. Función que maneja el evento clic
+    const handleClick = () => {
+        // Actualizamos el estado del componente
+        setContador(contador + 1);
+    }
+
+    //3. JSX que va a consumir el estado
+
+    return (
+        <>
+            <div className="p-6 bg-white rounded-lg shadow-md text-center">
+                <p className="text-xl">El contador vale: <span className="font-bold">{contador}</span></p>
+                <button
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    onClick={handleClick}
+                >
+                    Aumentar
+                </button>
+                <MiInput borderColor={"bg-gray-100"} />
+                {/* <input type="text" value={inputText} onChange={handleInputOnChange} /> */}
+            </div>
+        </>
+    )
+}
+
+export default MiContador;

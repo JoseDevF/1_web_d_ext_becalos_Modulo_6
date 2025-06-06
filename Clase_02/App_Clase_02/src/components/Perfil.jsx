@@ -1,11 +1,18 @@
 import { useState } from "react";
+import MiContador from "./MiContador";
 
+/* La función recibe unas props (un objeto) */
 const Perfil = ({ nombre, rol }) => {
     const [isSeguir, setIsSeguir] = useState(false);
 
     function handleOnClick() {
         setIsSeguir(!isSeguir);
     }
+
+    /*
+    1. Si el dato llega desde el componente padre, no va a cambiar ahi. Usa props.
+    2. Si el dato cambia dentro del mismo componente (un contador, si es un modal que esta abierto o cerrado), usa state (useState). 
+    */
 
     return (
         <>
@@ -23,6 +30,7 @@ const Perfil = ({ nombre, rol }) => {
                     {isSeguir ? "Dejar de seguir" : "Seguir"}
                 </button>
             </div>
+            <MiContador />
         </>
     )
 }
