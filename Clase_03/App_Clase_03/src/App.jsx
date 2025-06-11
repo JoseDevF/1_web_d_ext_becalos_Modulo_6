@@ -2,7 +2,10 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import { EjemploEffect } from './components/EjemploEffect'
+import { EjemploMemo } from './components/EjemploMemo'
 import './App.css'
+import { TituloDinamico } from './components/TituloDinamico'
+import { ListaFiltrable } from './components/ListaFiltrable'
 
 function App() {
   const [miArray, setMiArray] = useState(["banana", "manzana"])
@@ -23,7 +26,7 @@ function App() {
 
   return (
     <>
-      {/*  <div>
+      {/* <div>
         <button onClick={agregarFruta} className="mr-2">Agregar</button>
         <button onClick={quitarFruta}>Quitar última</button>
         <ul className="mt-4">
@@ -31,8 +34,11 @@ function App() {
             <li key={i}>{t}</li>
           ))}
         </ul>
-      </div> */}
+      </div>
       <EjemploEffect />
+      <EjemploMemo items={miArray} />
+      <TituloDinamico /> */}
+      <ListaFiltrable />
     </>
   )
 }
