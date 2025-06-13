@@ -34,10 +34,11 @@ export function ListaFiltrable() {
 
     // Memoizar listado filtrado
     const itemsFiltrados = useMemo(
-        () =>
-            items.filter((i) =>
+        () => {
+            return items.filter((i) =>
                 i.toLowerCase().includes(filtro.toLowerCase())
-            ),
+            )
+        },
         [items, filtro]
     );
 

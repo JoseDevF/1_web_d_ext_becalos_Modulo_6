@@ -52,7 +52,9 @@ const MiContador = () => {
                         Resetear
                     </button>
                 </div>
-                <MiInput borderColor={"bg-gray-100"} />
+                <MiInput borderColor={"bg-gray-100"} /> {/* Cada uno tendra su propio estado */}
+                <MiInput borderColor={"bg-green-100"} />
+                <MiInput borderColor={"bg-purple-100"} />
                 {/* <input type="text" value={inputText} onChange={handleInputOnChange} /> */}
             </div>
         </>
