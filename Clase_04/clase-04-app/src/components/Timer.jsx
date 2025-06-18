@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
-export function Timer() {
-    const [tiempo, setTiempo] = useState(30);
+export function Timer({ initValue = 60 }) {
+    const [tiempo, setTiempo] = useState(initValue);
 
     useEffect(() => {
         console.log("Temporizador montado");

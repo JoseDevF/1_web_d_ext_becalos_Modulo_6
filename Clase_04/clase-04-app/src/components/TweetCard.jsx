@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 
-export function TweetCard({ usuario, contenido }) {
+export function TweetCard({ usuario, contenido, className }) {
     const [likes, setLikes] = useState(0);
+    const [showCard, setShowCard] = useState(true)
 
     useEffect(() => {
         //Petición a la API para saber cuantos likes hay
@@ -15,13 +16,20 @@ export function TweetCard({ usuario, contenido }) {
         setLikes(prev => prev + 1);
     }
 
+    function handleShowButton() {
+        setShowCard(prev => !prev)
+    }
+
+    useEffect(() => { console.log("useEffect del Show Card") }, [showCard])
+
     return (
         <>
-            <div className="max-w-md mx-auto my-4 p-4 bg-white shadow-md rounded-lg">
+            <button className="btn" onClick={handleShowButton}></button>
+            <div className={`${showCard === true ? "block" : "hidden"} max-w-md mx-auto my-4 p-4 bg-white shadow-md rounded-lg`}>
                 <h3 className="font-bold text-lg">@{usuario}</h3>
                 <p className="mt-2 text-gray-700">{contenido}</p>
                 <button
-                    className="mt-4 inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className={className}
                     onClick={handleLikeButton}
                 >
                     ❤️ {likes}
