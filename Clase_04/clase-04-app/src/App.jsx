@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import './App.css'
 import { Timer } from './components/Timer'
-import { TweetCard } from './components/TweetCard'
+import TweetCard from './components/TweetCard'
 import TweetFeed from './components/TweetFeed'
+import TweetComposer from './components/TweetComposer'
 import { Card } from './components/Card'
 
 function App() {
@@ -40,9 +41,16 @@ function App() {
       setTweets([
         { id: 1, usuario: 'ana', contenido: '¡Hola mundo! #React' },
         { id: 2, usuario: 'juan', contenido: 'TailwindCSS es increíble #Tailwind' },
-        { id: 3, usuario: 'luis', contenido: 'Hooks al poder #ReactHooks' }
+        { id: 3, usuario: 'luis', contenido: 'Hooks al poder #ReactHooks' },
+        { id: 4, usuario: 'joss', contenido: 'El mejor framework de CSS #Tailwindcss' }
       ]);
     }, 1000);
+  }, []);
+
+  const publicarTweet = useCallback(texto => {
+    const nuevo = { id: Date.now(), usuario: 'yo', contenido: texto };
+    setTweets(prev => [nuevo, ...prev]);
+    console.log('Nuevo tweet publicado:', nuevo);
   }, []);
 
   return (
@@ -58,6 +66,8 @@ function App() {
       <TweetCard usuario={"Emanuel"} contenido={"Mi primer tweetcard"} className={"mt-4 inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"} />
       {/* Arreglo de tweetcards al que hacemos push cuando publicamos algo*/}
 
+      <TweetComposer onPublicar={publicarTweet} />
+
       <TweetFeed tweets={tweets}>
         {
           tweet => (
@@ -68,7 +78,7 @@ function App() {
 
 
       {/* Ejemplo sencillo con Card */}
-      <Card>
+      {/* <Card>
         <h2 className='text-xl font-bold'>Titulo de la tarjeta</h2>
         <p>Lorem ipsum dolor, sit amet consectetur adipisicing elit. Magnam tenetur alias inventore consequatur accusantium! Quo, numquam, quidem possimus vero dicta nisi rerum sint deserunt, vel doloremque iste omnis animi ad.</p>
       </Card>
@@ -77,8 +87,8 @@ function App() {
         <h2 className='text-xl font-bold'>Titulo de la tarjeta 2</h2>
         <p>Lorem ipsum dolor sit amet.</p>
         {/* <TweetCard usuario={"Emanuel"} contenido={"Mi primer tweetcard"} className={"mt-4 inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"} />
-        <Timer initValue={valorInicial} /> */}
-      </Card>
+        <Timer initValue={valorInicial} /> * /}
+      </Card> */}
     </>
   )
 }
