@@ -1,138 +1,210 @@
+/*****************************************************************************************
+ * DEMO: TaskFlow
+ * ───────────────────────────────────────────────────────────────────────────────────────
+ * PRINCIPIOS DE OPTIMIZACIÓN APLICADOS
+ *    1.  Mantener el árbol de render al mínimo -> descomponemos en <TodoItem> y <FilterBtn>
+ *        y los envolvemos en React.memo para evitar renders innecesarios.
+ *    2.  Evitar cálculos y efectos costosos en cada ciclo -> useMemo / useCallback donde
+ *        realmente aporta (nunca por “default”). 
+ *    3.  Animaciones fluidas sin lags -> delegamos transiciones a Framer Motion y CSS,
+ *        calculamos posiciones aleatorias SOLO una vez por partícula.
+ *    4.  Reducir estado: eliminamos “inputFocused”; la UI lo resuelve con :focus-within.
+ *    5.  Limpieza de dependencias -> dispatch y refs son estables, no van en arrays.
+ *****************************************************************************************/
 import React, {
     useReducer,
     useState,
     useRef,
     useEffect,
     useCallback,
-    useMemo
+    useMemo,
+    memo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Plus,
-    Check,
-    X,
-    Sparkles,
-    Circle,
-    CheckCircle2
-} from 'lucide-react';
+import { Plus, Check, X, Sparkles, Circle, CheckCircle2 } from 'lucide-react';
 
-// 1) Reducer puro para manejar la lógica de CRUD de los todos.
-//    useReducer es ideal aquí porque tenemos varias acciones y queremos centralizar la lógica.
-function todoReducer(state, action) {
+/*──────────────────────────── 1) STATE MANAGEMENT ────────────────────────────*/
+const todoReducer = (state, action) => {
     switch (action.type) {
         case 'ADD':
-            return [
-                { id: action.id, text: action.text, done: false },
-                ...state
-            ];
+            return [{ id: action.id, text: action.text, done: false }, ...state];
         case 'TOGGLE':
-            return state.map(t =>
-                t.id === action.id ? { ...t, done: !t.done } : t
-            );
+            return state.map(t => (t.id === action.id ? { ...t, done: !t.done } : t));
         case 'REMOVE':
             return state.filter(t => t.id !== action.id);
         default:
-            throw new Error(`Acción desconocida: ${action.type}`);
+            return state; // fallback seguro, como en la demo de miniX
     }
-}
+};
 
-// 2) Constante fuera del componente para evitar recrearla en cada render.
-const FILTER_OPTIONS = [
+/*──────────────────────────── 2) CONSTs FUERA DEL RENDER ─────────────────────*/
+const FILTERS = [
     { key: 'all', label: 'Todo', icon: Sparkles },
     { key: 'active', label: 'Activo', icon: Circle },
-    { key: 'completed', label: 'Hecho', icon: CheckCircle2 }
+    { key: 'completed', label: 'Hecho', icon: CheckCircle2 },
 ];
 
-// 3) Componente memoizado para las partículas.
-//    React.memo evita renders extra cuando no cambian las props.
-const FloatingParticle = React.memo(({ delay = 0 }) => (
-    <motion.div
-        className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-60"
-        animate={{
-            y: [-20, -80, -20],
-            x: [-10, 10, -10],
-            opacity: [0.6, 0.2, 0.6],
-            scale: [0.5, 1, 0.5]
-        }}
-        transition={{
-            duration: 3,
-            repeat: Infinity,
-            delay,
-            ease: 'easeInOut'
-        }}
-        style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`
-        }}
-    />
-));
-
-export default function AnimatedTodo() {
-    // ==== Manejo de estados ====
-    // useReducer para la lista de tareas (más escalable que múltiples useState para operaciones CRUD).
-    const [todos, dispatch] = useReducer(todoReducer, []);
-
-    // useState para el filtro actual y para controlar el estilo del input.
-    const [filter, setFilter] = useState('all');
-    const [inputFocused, setInputFocused] = useState(false);
-
-    // useRef para acceder de forma directa al <input> sin re-renderizar el componente.
-    const inputRef = useRef(null);
-
-    // Al montar, ponemos el foco en el input (solo una vez).
-    useEffect(() => {
-        inputRef.current?.focus();
-    }, []); // [] indica que solo corre al montar.
-
-    // ==== Callbacks memoizados ====
-    // useCallback memoriza la función hasta que cambien sus dependencias,
-    // evitando que se recreen en cada render y provoquen renders innecesarios en hijos.
-    const addTodo = useCallback(
-        e => {
-            e.preventDefault();
-            const text = inputRef.current.value.trim();
-            if (!text) return;
-            dispatch({ type: 'ADD', id: Date.now(), text });
-            inputRef.current.value = '';
-        },
-        [] // dispatch e inputRef son estables, así que no necesitamos ponerlos aquí.
+/*──────────────────────────── 3) COMPONENTES MEMOIZADOS ──────────────────────*/
+// Partícula: posición aleatoria calculada solo al montar el componente, importantisimo en animaciones :)
+const FloatingParticle = memo(({ delay = 0 }) => {
+    const { x, y } = useMemo(
+        () => ({
+            x: `${Math.random() * 100}%`,
+            y: `${Math.random() * 100}%`,
+        }),
+        [],
     );
-
-    const toggleTodo = useCallback(
-        id => dispatch({ type: 'TOGGLE', id }),
-        []
-    );
-    const removeTodo = useCallback(
-        id => dispatch({ type: 'REMOVE', id }),
-        []
-    );
-
-    // ==== Cálculos derivados con useMemo ====
-    // Para evitar filtrar y contar en cada render, los memorizamos
-    // y solo se recalculan cuando cambian 'todos' o 'filter'.
-    const { filteredTodos, remaining, completed } = useMemo(() => {
-        const remaining = todos.filter(t => !t.done).length;
-        const completed = todos.length - remaining;
-
-        let filteredTodos = todos;
-        if (filter === 'active') {
-            filteredTodos = todos.filter(t => !t.done);
-        } else if (filter === 'completed') {
-            filteredTodos = todos.filter(t => t.done);
-        }
-
-        return { filteredTodos, remaining, completed };
-    }, [todos, filter]);
 
     return (
+        <motion.div
+            className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-60"
+            style={{ left: x, top: y }}
+            animate={{ y: [-20, -80, -20], x: [-10, 10, -10], opacity: [0.6, 0.2, 0.6], scale: [0.5, 1, 0.5] }}
+            transition={{ duration: 3, repeat: Infinity, delay, ease: 'easeInOut' }}
+        />
+    );
+});
+
+// Botón de filtro
+const FilterBtn = memo(({ active, onClick, icon: Icon, children }) => (
+    <motion.button
+        onClick={onClick}
+        className={`relative px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 ${active
+            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
+            : 'bg-white/10 text-white/80 hover:bg-white/20'
+            }`}
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+    >
+        <Icon className="w-4 h-4" />
+        {children}
+        {active && (
+            <motion.div
+                layoutId="activeFilter"
+                className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl opacity-30"
+            />
+        )}
+    </motion.button>
+));
+
+// Item de la lista
+const TodoItem = memo(({ todo, onToggle, onRemove, index }) => (
+    <motion.div
+        layout
+        key={todo.id}
+        initial={{ opacity: 0, x: -100, rotateX: -10 }}
+        animate={{ opacity: 1, x: 0, rotateX: 0 }}
+        exit={{ opacity: 0, x: 100, scale: 0.8, rotateX: 10, transition: { duration: 0.3 } }}
+        transition={{ duration: 0.5, delay: index * 0.05, type: 'spring', stiffness: 100 }}
+        className="group relative"
+    >
+        <div
+            className={`relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 transition-all duration-300 hover:bg-white/10 hover:border-white/20 ${todo.done && 'opacity-60'
+                }`}
+        >
+            {todo.done && (
+                <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                />
+            )}
+
+            <div className="relative flex items-center justify-between">
+                {/* Toggle */}
+                <motion.button
+                    onClick={() => onToggle(todo.id)}
+                    className={`relative flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-300 ${todo.done
+                        ? 'bg-gradient-to-r from-green-400 to-emerald-400 border-green-400'
+                        : 'border-white/30 hover:border-purple-400'
+                        }`}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                >
+                    <AnimatePresence>
+                        {todo.done && (
+                            <motion.div
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="absolute inset-0 flex items-center justify-center"
+                            >
+                                <Check className="w-4 h-4 text-white" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.button>
+
+                {/* Texto */}
+                <motion.span
+                    className={`text-lg font-medium transition-all duration-300 ${todo.done ? 'line-through text-white/50' : 'text-white'
+                        }`}
+                    layout
+                >
+                    {todo.text}
+                </motion.span>
+
+                {/* Remove */}
+                <motion.button
+                    onClick={() => onRemove(todo.id)}
+                    className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                >
+                    <X className="w-4 h-4" />
+                </motion.button>
+            </div>
+        </div>
+    </motion.div>
+));
+
+/*──────────────────────────── 4) MAIN COMPONENT ──────────────────────────────*/
+export default function AnimatedTodo() {
+    /* 4.1 reducer + refs */
+    const [todos, dispatch] = useReducer(todoReducer, []);
+    const [filter, setFilter] = useState('all');
+    const inputRef = useRef(null);
+
+    /* 4.2 focus al montar (solo 1 vez) */
+    useEffect(() => inputRef.current?.focus(), []);
+
+    /* 4.3 handlers – solo los que cambian en el tiempo necesitan useCallback */
+    const addTodo = useCallback(e => {
+        e.preventDefault();
+        const text = inputRef.current.value.trim();
+        if (!text) return;
+        dispatch({ type: 'ADD', id: Date.now(), text });
+        inputRef.current.value = '';
+    }, []);
+
+    const toggleTodo = useCallback(id => dispatch({ type: 'TOGGLE', id }), []);
+    const removeTodo = useCallback(id => dispatch({ type: 'REMOVE', id }), []);
+
+    /* 4.4 derived state con useMemo */
+    const { filtered, remaining, completed } = useMemo(() => {
+        const remaining = todos.filter(t => !t.done).length;
+        const completed = todos.length - remaining;
+        const filtered =
+            filter === 'active'
+                ? todos.filter(t => !t.done)
+                : filter === 'completed'
+                    ? todos.filter(t => t.done)
+                    : todos;
+        return { filtered, remaining, completed };
+    }, [todos, filter]);
+
+    /*────────────────────────── 5) RENDER ───────────────────────────*/
+    return (
         <div className="min-h-screen bg-transparent flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Partículas animadas */}
-            {[...Array(12)].map((_, i) => (
+            {/* Decoración */}
+            {Array.from({ length: 12 }).map((_, i) => (
                 <FloatingParticle key={i} delay={i * 0.5} />
             ))}
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-3xl" />
 
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-3xl"></div>
-
+            {/* Contenedor principal */}
             <motion.div
                 initial={{ opacity: 0, y: 50, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -140,9 +212,7 @@ export default function AnimatedTodo() {
                 className="relative z-10 w-full max-w-lg"
             >
                 <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-
-                    {/* Título animado */}
+                    {/* Encabezado */}
                     <motion.div
                         className="relative z-10 text-center mb-8"
                         initial={{ opacity: 0, y: -20 }}
@@ -156,12 +226,10 @@ export default function AnimatedTodo() {
                         >
                             ✨ TaskFlow
                         </motion.h1>
-                        <p className="text-white/70 text-sm font-medium">
-                            Organiza tu mundo con estilo
-                        </p>
+                        <p className="text-white/70 text-sm font-medium">Organiza tu mundo con estilo</p>
                     </motion.div>
 
-                    {/* Formulario de entrada */}
+                    {/* Input */}
                     <motion.form
                         onSubmit={addTodo}
                         className="relative mb-8"
@@ -169,16 +237,9 @@ export default function AnimatedTodo() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.4, duration: 0.6 }}
                     >
-                        <div
-                            className={`relative bg-white/5 backdrop-blur-sm border-2 rounded-2xl transition-all duration-300 ${inputFocused
-                                ? 'border-purple-400/50 shadow-lg shadow-purple-500/20'
-                                : 'border-white/10'
-                                }`}
-                        >
+                        <div className="relative bg-white/5 backdrop-blur-sm border-2 rounded-2xl transition-all duration-300 focus-within:border-purple-400/50 focus-within:shadow-lg focus-within:shadow-purple-500/20 border-white/10">
                             <input
                                 ref={inputRef}
-                                onFocus={() => setInputFocused(true)}
-                                onBlur={() => setInputFocused(false)}
                                 className="w-full px-6 py-4 bg-transparent text-white placeholder-white/50 focus:outline-none text-lg font-medium"
                                 placeholder="¿Qué quieres lograr hoy?"
                             />
@@ -193,125 +254,40 @@ export default function AnimatedTodo() {
                         </div>
                     </motion.form>
 
-                    {/* Botones de filtro */}
+                    {/* Filtros */}
                     <motion.div
                         className="flex justify-center gap-3 mb-8"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.6 }}
                     >
-                        {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
-                            <motion.button
+                        {FILTERS.map(({ key, label, icon }) => (
+                            <FilterBtn
                                 key={key}
+                                active={filter === key}
                                 onClick={() => setFilter(key)}
-                                className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${filter === key
-                                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
-                                    : 'bg-white/10 text-white/80 hover:bg-white/20'
-                                    }`}
-                                whileHover={{ scale: 1.05, y: -2 }}
-                                whileTap={{ scale: 0.95 }}
+                                icon={icon}
                             >
-                                <Icon className="w-4 h-4" />
                                 {label}
-                                {filter === key && (
-                                    <motion.div
-                                        className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl opacity-30"
-                                        layoutId="activeFilter"
-                                    />
-                                )}
-                            </motion.button>
+                            </FilterBtn>
                         ))}
                     </motion.div>
 
-                    {/* Lista de tareas */}
+                    {/* Lista */}
                     <div className="space-y-3 mb-8 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                         <AnimatePresence mode="popLayout">
-                            {filteredTodos.map((todo, index) => (
-                                <motion.div
+                            {filtered.map((todo, idx) => (
+                                <TodoItem
                                     key={todo.id}
-                                    layout
-                                    initial={{ opacity: 0, x: -100, rotateX: -10 }}
-                                    animate={{ opacity: 1, x: 0, rotateX: 0 }}
-                                    exit={{
-                                        opacity: 0,
-                                        x: 100,
-                                        scale: 0.8,
-                                        rotateX: 10,
-                                        transition: { duration: 0.3 }
-                                    }}
-                                    transition={{
-                                        duration: 0.5,
-                                        delay: index * 0.05,
-                                        type: 'spring',
-                                        stiffness: 100
-                                    }}
-                                    className="group relative"
-                                >
-                                    {/* Card de cada todo */}
-                                    <div
-                                        className={`relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 transition-all duration-300 hover:bg-white/10 hover:border-white/20 ${todo.done ? 'opacity-60' : ''
-                                            }`}
-                                    >
-                                        {todo.done && (
-                                            <motion.div
-                                                className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl"
-                                                initial={{ scale: 0, opacity: 0 }}
-                                                animate={{ scale: 1, opacity: 1 }}
-                                                transition={{ duration: 0.5, ease: 'easeOut' }}
-                                            />
-                                        )}
-                                        <div className="relative flex items-center justify-between">
-                                            <div className="flex items-center gap-4 flex-1">
-                                                <motion.button
-                                                    onClick={() => toggleTodo(todo.id)}
-                                                    className={`relative flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-300 ${todo.done
-                                                        ? 'bg-gradient-to-r from-green-400 to-emerald-400 border-green-400'
-                                                        : 'border-white/30 hover:border-purple-400'
-                                                        }`}
-                                                    whileHover={{ scale: 1.1 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                >
-                                                    <AnimatePresence>
-                                                        {todo.done && (
-                                                            <motion.div
-                                                                initial={{ scale: 0, opacity: 0 }}
-                                                                animate={{ scale: 1, opacity: 1 }}
-                                                                exit={{ scale: 0, opacity: 0 }}
-                                                                transition={{ duration: 0.2 }}
-                                                                className="absolute inset-0 flex items-center justify-center"
-                                                            >
-                                                                <Check className="w-4 h-4 text-white" />
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </motion.button>
-
-                                                <motion.span
-                                                    className={`text-lg font-medium transition-all duration-300 ${todo.done
-                                                        ? 'line-through text-white/50'
-                                                        : 'text-white'
-                                                        }`}
-                                                    layout
-                                                >
-                                                    {todo.text}
-                                                </motion.span>
-                                            </div>
-
-                                            <motion.button
-                                                onClick={() => removeTodo(todo.id)}
-                                                className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                                whileHover={{ scale: 1.1, rotate: 90 }}
-                                                whileTap={{ scale: 0.9 }}
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </motion.button>
-                                        </div>
-                                    </div>
-                                </motion.div>
+                                    todo={todo}
+                                    index={idx}
+                                    onToggle={toggleTodo}
+                                    onRemove={removeTodo}
+                                />
                             ))}
                         </AnimatePresence>
 
-                        {filteredTodos.length === 0 && (
+                        {filtered.length === 0 && (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -329,7 +305,7 @@ export default function AnimatedTodo() {
                         )}
                     </div>
 
-                    {/* Estadísticas */}
+                    {/* Stats */}
                     <motion.div
                         className="relative bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
                         initial={{ opacity: 0, y: 20 }}
@@ -348,12 +324,10 @@ export default function AnimatedTodo() {
                                 >
                                     {remaining}
                                 </motion.div>
-                                <div className="text-white/70 text-sm font-medium">
-                                    Pendientes
-                                </div>
+                                <div className="text-white/70 text-sm font-medium">Pendientes</div>
                             </div>
 
-                            <div className="h-12 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent"></div>
+                            <div className="h-12 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
 
                             {/* Completadas */}
                             <div className="text-center">
@@ -366,22 +340,17 @@ export default function AnimatedTodo() {
                                 >
                                     {completed}
                                 </motion.div>
-                                <div className="text-white/70 text-sm font-medium">
-                                    Completadas
-                                </div>
+                                <div className="text-white/70 text-sm font-medium">Completadas</div>
                             </div>
                         </div>
 
-                        {/* Barra de progreso */}
+                        {/* Barra progreso */}
                         <div className="mt-4 bg-white/10 rounded-full h-2 overflow-hidden">
                             <motion.div
                                 className="h-full bg-gradient-to-r from-purple-500 to-emerald-500"
                                 initial={{ width: 0 }}
                                 animate={{
-                                    width:
-                                        todos.length > 0
-                                            ? `${(completed / todos.length) * 100}%`
-                                            : '0%'
+                                    width: todos.length ? `${(completed / todos.length) * 100}%` : 0,
                                 }}
                                 transition={{ duration: 0.8, ease: 'easeOut' }}
                             />
