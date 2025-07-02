@@ -6,16 +6,19 @@ import App from './App.jsx';
 import Home from './views/Home.jsx';
 import About from './views/About.jsx';
 import Contact from "./views/Contact.jsx";
+import { ThemeProvider } from './context/ThemeContext.jsx';
 
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<App />}>
-        {/* Las rutas anidadas se renderizan dentro del <Outlet> de App */}
-        <Route index element={<Home />} />
-        <Route path="about" element={<About />} />
-        <Route path="contact" element={<Contact />} />
-      </Route>
-    </Routes>
-  </BrowserRouter>
+  <ThemeProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />}>
+          {/* Las rutas anidadas se renderizan dentro del <Outlet> de App */}
+          <Route index element={<Home />} />
+          <Route path="about" element={<About />} />
+          <Route path="contact" element={<Contact />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  </ThemeProvider>
 );
